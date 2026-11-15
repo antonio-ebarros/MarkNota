@@ -1,0 +1,841 @@
+:root {
+  --bg-opacity: 0.78;
+  --ui-font: 'Segoe UI', 'Noto Sans', 'Inter', system-ui, sans-serif;
+  --editor-font: 'Inter', 'Segoe UI', 'Noto Sans', sans-serif;
+  --mono-font: 'JetBrains Mono', 'Fira Code', 'Noto Sans Mono', monospace;
+  --editor-size: 16px;
+  --editor-line-height: 1.65;
+  --editor-zoom: 1;
+}
+
+html[data-theme='dark'] {
+  --shell-bg: rgba(24, 24, 27, var(--bg-opacity));
+  --chrome-bg: rgba(18, 18, 21, 0.42);
+  --tab-active-bg: rgba(38, 38, 44, 0.72);
+  --tab-hover-bg: rgba(255, 255, 255, 0.06);
+  --popover-bg: rgba(30, 30, 35, 0.88);
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.16);
+  --code-bg: rgba(255, 255, 255, 0.07);
+  --quote-bg: rgba(255, 255, 255, 0.03);
+  --close-hover: #c42b1c;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+}
+
+html[data-theme='light'] {
+  --shell-bg: rgba(247, 247, 250, var(--bg-opacity));
+  --chrome-bg: rgba(232, 234, 240, 0.46);
+  --tab-active-bg: rgba(255, 255, 255, 0.78);
+  --tab-hover-bg: rgba(0, 0, 0, 0.05);
+  --popover-bg: rgba(250, 250, 252, 0.92);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.15);
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --code-bg: rgba(0, 0, 0, 0.055);
+  --quote-bg: rgba(0, 0, 0, 0.03);
+  --close-hover: #c42b1c;
+  --scrollbar-thumb: rgba(0, 0, 0, 0.16);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  font-family: var(--ui-font);
+  color: var(--text-primary);
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--shell-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  transition: background 0.18s ease;
+}
+
+.app-shell.maximized {
+  border-radius: 0;
+  border: none;
+}
+
+/* ===== Barra de título + Abas estilo Windows 11 Notepad ===== */
+.titlebar {
+  height: 40px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--chrome-bg);
+  padding-left: 10px;
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+}
+
+.titlebar-brand {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px 0 4px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.tabs-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 34px;
+  max-width: calc(100% - 190px);
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.tabs-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-item {
+  height: 32px;
+  min-width: 120px;
+  max-width: 210px;
+  padding: 0 8px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 7px 7px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+  border: 1px solid transparent;
+  border-bottom: none;
+}
+
+.tab-item:hover {
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+}
+
+.tab-item.active {
+  background: var(--tab-active-bg);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+  font-weight: 500;
+}
+
+.tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tab-meta {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tab-dirty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.tab-close-btn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.tab-close-btn:hover {
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.tab-add-btn {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tab-add-btn:hover {
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+}
+
+.titlebar-drag-spacer {
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  height: 40px;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+
+.win-btn {
+  width: 44px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.win-btn:hover {
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+}
+
+.win-btn.win-close:hover {
+  background: var(--close-hover);
+  color: #ffffff;
+}
+
+/* ===== Barra de menu compacta ===== */
+.menubar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: var(--tab-active-bg);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.menu-items {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.menu-dropdown-wrap {
+  position: relative;
+}
+
+.menu-trigger {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.menu-trigger:hover,
+.menu-trigger.open {
+  background: var(--tab-hover-bg);
+}
+
+.menu-popup {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  min-width: 230px;
+  padding: 5px;
+  border-radius: 8px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menu-action {
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menu-action:hover {
+  background: var(--accent-soft);
+}
+
+.menu-action kbd {
+  font-family: var(--ui-font);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
+
+/* ===== Controles rápidos (Fonte + Visual) ===== */
+.toolbar-quick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-pill {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.quick-pill:hover,
+.quick-pill.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.font-badge {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ===== Popovers (Fonte e Aparência) ===== */
+.popover-panel {
+  position: absolute;
+  top: 78px;
+  right: 12px;
+  width: 310px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(26px) saturate(1.4);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.appearance-panel {
+  width: 280px;
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.text-btn {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.text-btn:hover {
+  background: var(--accent-soft);
+}
+
+.popover-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.popover-row {
+  gap: 4px;
+}
+
+.popover-row label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.popover-row label strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.glass-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.glass-input:focus {
+  border-color: var(--accent);
+}
+
+.font-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.font-chip {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.font-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.font-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.font-list {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.font-option {
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.font-option:hover {
+  background: var(--tab-hover-bg);
+}
+
+.font-option.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.range-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.icon-mini-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.icon-mini-btn:hover {
+  background: var(--accent-soft);
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 7px;
+  background: var(--tab-hover-bg);
+}
+
+.seg-btn {
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seg-btn.active {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.toggle-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.toggle-row input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* ===== Barra de localizar ===== */
+.find-bar {
+  position: absolute;
+  top: 82px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(22px);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 80;
+}
+
+.find-bar .glass-input {
+  width: 190px;
+  height: 26px;
+}
+
+.find-count {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ===== Área do Editor Markdown WYSIWYG ===== */
+.editor-scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 28px 32px 48px;
+  cursor: text;
+  user-select: text;
+}
+
+.editor-scroll.centered .editor-container {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.editor-container {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--editor-font);
+  font-size: calc(var(--editor-size) * var(--editor-zoom));
+  line-height: var(--editor-line-height);
+  color: var(--text-primary);
+}
+
+.tiptap-editor {
+  outline: none;
+  flex: 1;
+  min-height: 100%;
+  caret-color: var(--accent);
+}
+
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Tipografia Markdown estilo MarkText */
+.tiptap-editor h1,
+.tiptap-editor h2,
+.tiptap-editor h3,
+.tiptap-editor h4 {
+  margin: 1.15em 0 0.45em;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+.tiptap-editor h1:first-child,
+.tiptap-editor h2:first-child,
+.tiptap-editor h3:first-child {
+  margin-top: 0.1em;
+}
+
+.tiptap-editor h1 {
+  font-size: 1.85em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tiptap-editor h2 {
+  font-size: 1.45em;
+}
+
+.tiptap-editor h3 {
+  font-size: 1.2em;
+}
+
+.tiptap-editor h4 {
+  font-size: 1.05em;
+  color: var(--text-secondary);
+}
+
+.tiptap-editor p {
+  margin: 0.45em 0;
+}
+
+.tiptap-editor ul,
+.tiptap-editor ol {
+  padding-left: 1.55em;
+  margin: 0.45em 0;
+}
+
+.tiptap-editor li {
+  margin: 0.2em 0;
+}
+
+.tiptap-editor ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+
+.tiptap-editor ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+}
+
+.tiptap-editor ul[data-type='taskList'] li > label {
+  margin-top: 0.22em;
+  flex-shrink: 0;
+}
+
+.tiptap-editor ul[data-type='taskList'] li > label input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.tiptap-editor ul[data-type='taskList'] li[data-checked='true'] > div {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.tiptap-editor blockquote {
+  margin: 0.7em 0;
+  padding: 0.35em 1em;
+  border-left: 3px solid var(--accent);
+  background: var(--quote-bg);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-secondary);
+}
+
+.tiptap-editor code {
+  font-family: var(--mono-font);
+  font-size: 0.88em;
+  padding: 0.14em 0.38em;
+  border-radius: 4px;
+  background: var(--code-bg);
+}
+
+.tiptap-editor pre {
+  margin: 0.8em 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--code-bg);
+  border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+
+.tiptap-editor pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+
+.tiptap-editor hr {
+  border: none;
+  border-top: 1px solid var(--border-strong);
+  margin: 1.25em 0;
+}
+
+.tiptap-editor a.md-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* ===== Barra de status estilo Windows 11 Notepad ===== */
+.statusbar {
+  height: 26px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  background: var(--chrome-bg);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.status-left,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-sep {
+  opacity: 0.35;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}

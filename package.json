@@ -1,0 +1,61 @@
+{
+  "name": "marknota",
+  "version": "1.0.0",
+  "description": "MarkNota: bloco de notas minimalista estilo Windows 11 Notepad com Markdown WYSIWYG (inspirado no MarkText) e fundo transparente fosco.",
+  "main": "dist-electron/main.cjs",
+  "author": "andb",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && npm run build:electron",
+    "build:electron": "esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.cjs && esbuild electron/preload.ts --bundle --platform=node --external:electron --outfile=dist-electron/preload.cjs",
+    "start": "npm run build && electron .",
+    "start:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && npm run build:electron && VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "dist:appimage": "npm run build && electron-builder --linux AppImage"
+  },
+  "build": {
+    "appId": "com.marknota.app",
+    "productName": "MarkNota",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "assets/icon-512.png",
+      "category": "Utility;TextEditor;"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon-512.png"
+    }
+  },
+  "dependencies": {
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/extension-link": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5",
+    "@tiptap/extension-task-item": "^2.11.5",
+    "@tiptap/extension-task-list": "^2.11.5",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "tiptap-markdown": "^0.8.10"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "concurrently": "^9.1.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "wait-on": "^8.0.2"
+  }
+}

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws://localhost:5173 http://localhost:5173;"
+    />
+    <title>MarkNota</title>
+  </head>
+  <body>
+    <div id="app-shell" class="app-shell">
+      <!-- Barra de título estilo Windows 11 Notepad com abas -->
+      <header id="titlebar" class="titlebar">
+        <div class="titlebar-brand" title="MarkNota">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="2" width="20" height="20" rx="5" fill="rgba(59, 130, 246, 0.16)" stroke="currentColor" stroke-width="1.6" />
+            <text x="12" y="16.2" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', 'Noto Sans Mono', monospace" font-size="12.5" font-weight="700" fill="currentColor">M</text>
+          </svg>
+        </div>
+
+        <div id="tabs-strip" class="tabs-strip" role="tablist">
+          <div id="tabs-container" class="tabs-container"></div>
+          <button id="btn-new-tab" class="tab-add-btn" title="Nova aba (Ctrl+T)" aria-label="Nova aba">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="titlebar-drag-spacer"></div>
+
+        <div class="window-controls">
+          <button id="win-min" class="win-btn" title="Minimizar" aria-label="Minimizar">
+            <svg width="11" height="11" viewBox="0 0 12 12"><rect x="2" y="5.5" width="8" height="1" fill="currentColor" /></svg>
+          </button>
+          <button id="win-max" class="win-btn" title="Maximizar" aria-label="Maximizar">
+            <svg width="11" height="11" viewBox="0 0 12 12"><rect x="2.2" y="2.2" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width="1.1" /></svg>
+          </button>
+          <button id="win-close" class="win-btn win-close" title="Fechar" aria-label="Fechar">
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <path d="M2.5 2.5L9.5 9.5M9.5 2.5L2.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Barra de menu compacta + controles rápidos -->
+      <nav id="menubar" class="menubar">
+        <div class="menu-items">
+          <div class="menu-dropdown-wrap">
+            <button class="menu-trigger" data-menu="file">Arquivo</button>
+            <div id="menu-file" class="menu-popup hidden">
+              <button class="menu-action" data-cmd="new-tab"><span>Nova aba</span><kbd>Ctrl+T</kbd></button>
+              <button class="menu-action" data-cmd="open"><span>Abrir...</span><kbd>Ctrl+O</kbd></button>
+              <div class="menu-sep"></div>
+              <button class="menu-action" data-cmd="save"><span>Salvar</span><kbd>Ctrl+S</kbd></button>
+              <button class="menu-action" data-cmd="save-as"><span>Salvar como...</span><kbd>Ctrl+Shift+S</kbd></button>
+              <div class="menu-sep"></div>
+              <button class="menu-action" data-cmd="close-tab"><span>Fechar aba</span><kbd>Ctrl+W</kbd></button>
+              <button class="menu-action" data-cmd="exit"><span>Sair</span><kbd>Alt+F4</kbd></button>
+            </div>
+          </div>
+
+          <div class="menu-dropdown-wrap">
+            <button class="menu-trigger" data-menu="edit">Editar</button>
+            <div id="menu-edit" class="menu-popup hidden">
+              <button class="menu-action" data-cmd="undo"><span>Desfazer</span><kbd>Ctrl+Z</kbd></button>
+              <button class="menu-action" data-cmd="redo"><span>Refazer</span><kbd>Ctrl+Y</kbd></button>
+              <div class="menu-sep"></div>
+              <button class="menu-action" data-cmd="find"><span>Localizar</span><kbd>Ctrl+F</kbd></button>
+              <div class="menu-sep"></div>
+              <button class="menu-action" data-cmd="md-h1"><span>Título 1</span><kbd># </kbd></button>
+              <button class="menu-action" data-cmd="md-bold"><span>Negrito</span><kbd>Ctrl+B</kbd></button>
+              <button class="menu-action" data-cmd="md-italic"><span>Itálico</span><kbd>Ctrl+I</kbd></button>
+              <button class="menu-action" data-cmd="md-task"><span>Lista de tarefas</span><kbd>- [ ] </kbd></button>
+              <button class="menu-action" data-cmd="md-code"><span>Bloco de código</span><kbd>```</kbd></button>
+            </div>
+          </div>
+
+          <div class="menu-dropdown-wrap">
+            <button class="menu-trigger" data-menu="view">Exibir</button>
+            <div id="menu-view" class="menu-popup hidden">
+              <button class="menu-action" data-cmd="zoom-in"><span>Ampliar</span><kbd>Ctrl++</kbd></button>
+              <button class="menu-action" data-cmd="zoom-out"><span>Reduzir</span><kbd>Ctrl+-</kbd></button>
+              <button class="menu-action" data-cmd="zoom-reset"><span>Restaurar zoom</span><kbd>Ctrl+0</kbd></button>
+              <div class="menu-sep"></div>
+              <button class="menu-action" data-cmd="toggle-statusbar"><span>Mostrar/ocultar barra de status</span></button>
+              <button class="menu-action" data-cmd="toggle-centered"><span>Largura de leitura confortável</span></button>
+              <button class="menu-action" data-cmd="toggle-theme"><span>Alternar tema Claro/Escuro</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar-quick">
+          <button id="btn-font-picker" class="quick-pill" title="Escolher fonte e tamanho">
+            <span class="font-badge">Aa</span>
+            <span id="current-font-label">Fonte</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+
+          <button id="btn-appearance" class="quick-pill" title="Transparência fosca e tema">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+            </svg>
+            <span>Visual</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Popover de Escolha de Fonte Fácil -->
+      <div id="font-popover" class="popover-panel hidden" role="dialog" aria-label="Escolha de fonte">
+        <div class="popover-header">
+          <span>Fonte</span>
+          <button id="btn-reset-font" class="text-btn">Padrão</button>
+        </div>
+
+        <div class="popover-section">
+          <input id="font-search" class="glass-input" type="text" placeholder="Buscar fonte instalada..." />
+        </div>
+
+        <div class="popover-section">
+          <div class="section-label">Recomendadas</div>
+          <div id="recommended-fonts" class="font-chips"></div>
+        </div>
+
+        <div class="popover-section">
+          <div class="section-label">Todas as fontes</div>
+          <div id="font-list" class="font-list"></div>
+        </div>
+
+        <div class="popover-section popover-row">
+          <label for="font-size-range">Tamanho <strong id="font-size-val">16px</strong></label>
+          <div class="range-controls">
+            <button id="font-size-dec" class="icon-mini-btn" title="Diminuir">−</button>
+            <input id="font-size-range" type="range" min="12" max="28" step="1" value="16" />
+            <button id="font-size-inc" class="icon-mini-btn" title="Aumentar">+</button>
+          </div>
+        </div>
+
+        <div class="popover-section popover-row">
+          <label for="line-height-range">Espaçamento <strong id="line-height-val">1.65</strong></label>
+          <input id="line-height-range" type="range" min="1.2" max="2.1" step="0.05" value="1.65" />
+        </div>
+      </div>
+
+      <!-- Popover de Visual / Fundo Fosco -->
+      <div id="appearance-popover" class="popover-panel appearance-panel hidden" role="dialog" aria-label="Visual e Transparência">
+        <div class="popover-header">
+          <span>Aparência Fosca</span>
+        </div>
+
+        <div class="popover-section">
+          <div class="section-label">Tema</div>
+          <div class="segmented-control">
+            <button id="theme-dark-btn" class="seg-btn active" data-theme-choice="dark">Escuro Fosco</button>
+            <button id="theme-light-btn" class="seg-btn" data-theme-choice="light">Claro Fosco</button>
+          </div>
+        </div>
+
+        <div class="popover-section popover-row">
+          <label for="opacity-range">Opacidade do fundo <strong id="opacity-val">78%</strong></label>
+          <input id="opacity-range" type="range" min="35" max="98" step="1" value="78" />
+        </div>
+
+        <div class="popover-section toggle-row">
+          <span>Desfoque do sistema (Blur KDE)</span>
+          <input id="blur-toggle" type="checkbox" checked />
+        </div>
+
+        <div class="popover-section toggle-row">
+          <span>Coluna de leitura centralizada</span>
+          <input id="centered-toggle" type="checkbox" checked />
+        </div>
+      </div>
+
+      <!-- Barra de Localizar (Ctrl+F) -->
+      <div id="find-bar" class="find-bar hidden">
+        <input id="find-input" class="glass-input" type="text" placeholder="Localizar no texto..." />
+        <span id="find-count" class="find-count">0/0</span>
+        <button id="find-prev" class="icon-mini-btn" title="Anterior">↑</button>
+        <button id="find-next" class="icon-mini-btn" title="Próximo">↓</button>
+        <button id="find-close" class="icon-mini-btn" title="Fechar (Esc)">✕</button>
+      </div>
+
+      <!-- Área principal do editor Markdown WYSIWYG -->
+      <main id="editor-scroll" class="editor-scroll centered">
+        <div id="editor-container" class="editor-container"></div>
+      </main>
+
+      <!-- Barra de status estilo Windows 11 Notepad -->
+      <footer id="statusbar" class="statusbar">
+        <div class="status-left">
+          <span id="status-cursor">Ln 1, Col 1</span>
+          <span class="status-sep">│</span>
+          <span id="status-counts">0 palavras, 0 caracteres</span>
+        </div>
+        <div class="status-right">
+          <span id="status-zoom">100%</span>
+          <span class="status-sep">│</span>
+          <span>UTF-8</span>
+          <span class="status-sep">│</span>
+          <span id="status-format">Markdown</span>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
