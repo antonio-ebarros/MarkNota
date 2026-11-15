@@ -180,6 +180,20 @@ ipcMain.handle('file:read', async (_event, filePath: unknown) => {
   return readSafeTextFile(filePath);
 });
 
+ipcMain.handle('app:getInitialFiles', async () => {
+  const args = process.argv.slice(app.isPackaged ? 1 : 2);
+  const opened: Array<{ filePath: string; name: string; content: string }> = [];
+  for (const arg of args) {
+    if (!arg || arg.startsWith('-')) continue;
+    try {
+      opened.push(await readSafeTextFile(arg));
+    } catch {
+      // Ignore invalid or non-file arguments
+    }
+  }
+  return opened;
+});
+
 ipcMain.handle('file:save', async (_event, payload: unknown) => {
   if (!mainWindow || typeof payload !== 'object' || payload === null) return null;
   const data = payload as { filePath?: unknown; defaultName?: unknown; content?: unknown };

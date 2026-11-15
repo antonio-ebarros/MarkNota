@@ -10,7 +10,8 @@
     "build:electron": "esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.cjs && esbuild electron/preload.ts --bundle --platform=node --external:electron --outfile=dist-electron/preload.cjs",
     "start": "npm run build && electron .",
     "start:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && npm run build:electron && VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
-    "dist:appimage": "npm run build && electron-builder --linux AppImage"
+    "dist:appimage": "npm run build && electron-builder --linux AppImage",
+    "dist:deb": "npm run build && electron-builder --linux deb"
   },
   "build": {
     "appId": "com.marknota.app",
@@ -24,12 +25,33 @@
       "assets/**/*",
       "package.json"
     ],
+    "fileAssociations": [
+      {
+        "ext": "md",
+        "name": "Markdown",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": "markdown",
+        "name": "Markdown",
+        "mimeType": "text/markdown"
+      }
+    ],
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb"
       ],
       "icon": "assets/icon-512.png",
-      "category": "Utility;TextEditor;"
+      "category": "Utility;TextEditor;",
+      "maintainer": "antonio-ebarros",
+      "desktop": {
+        "entry": {
+          "Name": "MarkNota",
+          "Comment": "Bloco de notas minimalista com Markdown WYSIWYG",
+          "StartupWMClass": "marknota"
+        }
+      }
     },
     "win": {
       "target": [

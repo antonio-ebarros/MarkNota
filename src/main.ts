@@ -688,6 +688,11 @@ async function init(): Promise<void> {
   setupKeyboardShortcuts();
   createNewTab();
 
+  const initialFiles = await window.markNotaAPI.getInitialFiles();
+  for (const f of initialFiles) {
+    openOrFocusFile(f.filePath, f.name, f.content);
+  }
+
   // Load installed system fonts asynchronously
   systemFonts = await window.markNotaAPI.listSystemFonts();
 }

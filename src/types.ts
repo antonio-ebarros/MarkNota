@@ -40,6 +40,7 @@ declare global {
       setBlur: (enabled: boolean) => Promise<boolean>;
       onMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
       openFiles: () => Promise<OpenedFile[] | null>;
+      getInitialFiles: () => Promise<OpenedFile[]>;
       readFile: (filePath: string) => Promise<OpenedFile>;
       saveFile: (payload: { filePath: string | null; defaultName: string; content: string }) => Promise<SavedFile | null>;
       saveFileAs: (payload: { defaultName: string; content: string }) => Promise<SavedFile | null>;

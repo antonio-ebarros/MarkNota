@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('markNotaAPI', {
   },
 
   openFiles: (): Promise<OpenedFile[] | null> => ipcRenderer.invoke('file:open'),
+  getInitialFiles: (): Promise<OpenedFile[]> => ipcRenderer.invoke('app:getInitialFiles'),
   readFile: (filePath: string): Promise<OpenedFile> => ipcRenderer.invoke('file:read', filePath),
   saveFile: (payload: { filePath: string | null; defaultName: string; content: string }): Promise<SavedFile | null> =>
     ipcRenderer.invoke('file:save', payload),
