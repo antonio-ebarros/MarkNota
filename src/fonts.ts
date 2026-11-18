@@ -4,7 +4,14 @@ export interface RecommendedFont {
   stack: string;
 }
 
+/** Fonte oficial do editor (embutida no app). */
+export const DEFAULT_EDITOR_FONT = '0xProto Nerd Font Mono';
+
+// Fallback para caracteres chineses (0xProto não cobre CJK)
+const CJK = "'Noto Sans CJK SC', 'Microsoft YaHei', 'PingFang SC'";
+
 export const RECOMMENDED_FONTS: RecommendedFont[] = [
+  { name: DEFAULT_EDITOR_FONT, label: '0xProto', stack: `'${DEFAULT_EDITOR_FONT}', ${CJK}, monospace` },
   { name: 'Inter', label: 'Inter', stack: "'Inter', 'Segoe UI', 'Noto Sans', sans-serif" },
   { name: 'Segoe UI', label: 'Segoe UI', stack: "'Segoe UI', 'Noto Sans', sans-serif" },
   { name: 'Noto Sans', label: 'Noto Sans', stack: "'Noto Sans', sans-serif" },
@@ -19,5 +26,5 @@ export function buildFontStack(fontName: string): string {
   const recommended = RECOMMENDED_FONTS.find((f) => f.name === fontName);
   if (recommended) return recommended.stack;
   const safe = fontName.replace(/'/g, "\\'");
-  return `'${safe}', 'Noto Sans', sans-serif`;
+  return `'${safe}', 'Noto Sans', ${CJK}, sans-serif`;
 }

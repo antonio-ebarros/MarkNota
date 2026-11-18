@@ -1,7 +1,14 @@
 import './style.css';
 import type { Editor } from '@tiptap/core';
 import { createMarkdownEditor, getEditorMarkdown } from './editor';
-import { RECOMMENDED_FONTS, buildFontStack } from './fonts';
+import { DEFAULT_EDITOR_FONT, RECOMMENDED_FONTS, buildFontStack } from './fonts';
+import {
+  TRANSLATIONS,
+  resolveLocale,
+  type LanguageSetting,
+  type LocaleCode,
+  type Translations
+} from './i18n';
 import type { AppSettings, TabDocument } from './types';
 
 const SETTINGS_KEY = 'marknota.settings.v1';
@@ -11,18 +18,27 @@ const DEFAULT_SETTINGS: AppSettings = {
   opacity: 78,
   blur: true,
   centered: true,
-  fontFamily: 'Inter',
+  fontFamily: DEFAULT_EDITOR_FONT,
   fontSize: 16,
   lineHeight: 1.65,
   zoom: 1,
-  showStatusBar: true
+  showStatusBar: true,
+  language: 'auto',
+  fontV2: true
 };
 
 function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const stored = JSON.parse(raw) as Partial<AppSettings>;
+    const parsed: AppSettings = { ...DEFAULT_SETTINGS, ...stored };
+    // Migração única: quem estava no antigo padrão (Inter) passa para 0xProto
+    if (!stored.fontV2) {
+      if (parsed.fontFamily === 'Inter') parsed.fontFamily = DEFAULT_EDITOR_FONT;
+      parsed.fontV2 = true;
+    }
+    return parsed;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -39,6 +55,23 @@ let untitledCounter = 1;
 let editor: Editor | null = null;
 let isApplyingTabContent = false;
 let systemFonts: string[] = [];
+let systemLocale = navigator.language || 'pt';
+let appPlatform = navigator.userAgent.toLowerCase().includes('win') ? 'win32' : 'linux';
+let appVersion = '1.0.0';
+let lastStats = { line: 1, col: 1, words: 0, chars: 0 };
+
+function getActiveLocale(): LocaleCode {
+  return resolveLocale(settings.language, systemLocale);
+}
+
+function t(): Translations {
+  return TRANSLATIONS[getActiveLocale()];
+}
+
+function formatUntitledTitle(index: number): string {
+  const base = t().untitled;
+  return index === 1 ? `${base}.md` : `${base} ${index}.md`;
+}
 
 // DOM refs
 const appShell = document.getElementById('app-shell')!;
@@ -68,6 +101,7 @@ const lineHeightVal = document.getElementById('line-height-val')!;
 const opacityRange = document.getElementById('opacity-range') as HTMLInputElement;
 const opacityVal = document.getElementById('opacity-val')!;
 const blurToggle = document.getElementById('blur-toggle') as HTMLInputElement;
+const blurLabel = document.getElementById('blur-label')!;
 const centeredToggle = document.getElementById('centered-toggle') as HTMLInputElement;
 const themeDarkBtn = document.getElementById('theme-dark-btn')!;
 const themeLightBtn = document.getElementById('theme-light-btn')!;
@@ -75,12 +109,84 @@ const themeLightBtn = document.getElementById('theme-light-btn')!;
 const findBar = document.getElementById('find-bar')!;
 const findInput = document.getElementById('find-input') as HTMLInputElement;
 const findCount = document.getElementById('find-count')!;
+const contextMenu = document.getElementById('context-menu')!;
+const aboutOverlay = document.getElementById('about-overlay')!;
 
 let findMatches: Array<{ from: number; to: number }> = [];
 let findIndex = -1;
 
 function getActiveTab(): TabDocument | undefined {
   return tabs.find((t) => t.id === activeTabId);
+}
+
+function updateStatusBarStats(): void {
+  const tr = t();
+  const { line, col, words, chars } = lastStats;
+  statusCursor.textContent = `${tr.statusLn} ${line}, ${tr.statusCol} ${col}`;
+  const wLabel = words === 1 ? tr.wordSingular : tr.wordPlural;
+  const cLabel = chars === 1 ? tr.charSingular : tr.charPlural;
+  statusCounts.textContent = `${words} ${wLabel}, ${chars} ${cLabel}`;
+}
+
+function applyLocalization(): void {
+  const locale = getActiveLocale();
+  const tr = TRANSLATIONS[locale];
+
+  document.documentElement.lang = locale === 'zh' ? 'zh-CN' : locale === 'en' ? 'en' : 'pt-BR';
+  void window.markNotaAPI.setLocale(locale);
+
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
+    const key = el.dataset.i18n as keyof Translations;
+    if (key && tr[key]) {
+      el.textContent = tr[key];
+    }
+  });
+
+  document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.dataset.i18nPlaceholder as keyof Translations;
+    if (key && tr[key]) {
+      el.placeholder = tr[key];
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>('[data-i18n-title]').forEach((el) => {
+    const key = el.dataset.i18nTitle as keyof Translations;
+    if (key && tr[key]) {
+      el.title = tr[key];
+      el.setAttribute('aria-label', tr[key]);
+    }
+  });
+
+  // Nome da opção de blur conforme o sistema operacional
+  if (appPlatform === 'win32') {
+    blurLabel.textContent = tr.blurWindows;
+  } else if (appPlatform === 'linux') {
+    blurLabel.textContent = tr.blurKde;
+  } else {
+    blurLabel.textContent = tr.blurGeneric;
+  }
+
+  // Marca de idioma ativo no menu Opções
+  document.querySelectorAll<HTMLButtonElement>('.lang-option').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.lang === settings.language);
+  });
+
+  // Atualiza abas sem título para o idioma atual
+  for (const tab of tabs) {
+    if (tab.isUntitled && !tab.filePath && tab.untitledIndex) {
+      tab.title = formatUntitledTitle(tab.untitledIndex);
+    }
+  }
+
+  document.getElementById('about-version')!.textContent = `${tr.aboutVersionPrefix} ${appVersion}`;
+
+  // Atualiza placeholder do editor Tiptap
+  if (editor) {
+    editor.view.dispatch(editor.state.tr);
+  }
+
+  updateStatusBarStats();
+  renderTabs();
 }
 
 function applySettingsToDOM(): void {
@@ -110,10 +216,12 @@ function applySettingsToDOM(): void {
 
   statusZoom.textContent = `${Math.round(settings.zoom * 100)}%`;
 
+  applyLocalization();
   saveSettings(settings);
 }
 
 function renderTabs(): void {
+  const tr = t();
   tabsContainer.innerHTML = '';
   for (const tab of tabs) {
     const el = document.createElement('div');
@@ -132,14 +240,14 @@ function renderTabs(): void {
     if (tab.dirty) {
       const dot = document.createElement('span');
       dot.className = 'tab-dirty-dot';
-      dot.title = 'Alterações não salvas';
+      dot.title = tr.unsavedChanges;
       meta.appendChild(dot);
     }
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'tab-close-btn';
     closeBtn.innerHTML = '×';
-    closeBtn.title = 'Fechar aba (Ctrl+W)';
+    closeBtn.title = tr.closeTabTooltip;
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       void closeTab(tab.id);
@@ -161,15 +269,16 @@ function renderTabs(): void {
 
   const active = getActiveTab();
   if (active) {
-    statusFormat.textContent = active.filePath?.endsWith('.txt') ? 'Texto' : 'Markdown';
+    statusFormat.textContent = active.filePath?.endsWith('.txt') ? tr.formatText : tr.formatMarkdown;
     document.title = `${active.dirty ? '● ' : ''}${active.title} — MarkNota`;
   }
 }
 
 function createNewTab(initial?: { title?: string; filePath?: string | null; content?: string }): TabDocument {
   const id = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const title = initial?.title ?? (untitledCounter === 1 ? 'sem título.md' : `sem título ${untitledCounter}.md`);
-  if (!initial?.title) untitledCounter += 1;
+  const isUntitled = !initial?.title;
+  const untitledIndex = isUntitled ? untitledCounter++ : undefined;
+  const title = initial?.title ?? formatUntitledTitle(untitledIndex!);
 
   const content = initial?.content ?? '';
   const tab: TabDocument = {
@@ -178,7 +287,9 @@ function createNewTab(initial?: { title?: string; filePath?: string | null; cont
     filePath: initial?.filePath ?? null,
     content,
     savedContent: content,
-    dirty: false
+    dirty: false,
+    isUntitled,
+    untitledIndex
   };
   tabs.push(tab);
   switchTab(id);
@@ -225,6 +336,7 @@ function openOrFocusFile(filePath: string, name: string, content: string): void 
     active.content = content;
     active.savedContent = content;
     active.dirty = false;
+    active.isUntitled = false;
     switchTab(active.id);
   } else {
     createNewTab({ title: name, filePath, content });
@@ -246,6 +358,7 @@ async function saveTab(tab: TabDocument, forceSaveAs = false): Promise<boolean> 
   tab.title = saved.name;
   tab.savedContent = tab.content;
   tab.dirty = false;
+  tab.isUntitled = false;
   renderTabs();
   return true;
 }
@@ -339,12 +452,18 @@ function closeAllMenusAndPopovers(): void {
   appearancePopover.classList.add('hidden');
   btnFontPicker.classList.remove('active');
   btnAppearance.classList.remove('active');
+  contextMenu.classList.add('hidden');
 }
 
 function setupMenus(): void {
   document.querySelectorAll<HTMLButtonElement>('.menu-trigger').forEach((trigger) => {
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (trigger.dataset.cmd) {
+        closeAllMenusAndPopovers();
+        void executeCommand(trigger.dataset.cmd);
+        return;
+      }
       const menuName = trigger.dataset.menu;
       const popup = document.getElementById(`menu-${menuName}`);
       if (!popup) return;
@@ -357,11 +476,22 @@ function setupMenus(): void {
     });
   });
 
-  document.querySelectorAll<HTMLButtonElement>('.menu-action').forEach((actionBtn) => {
+  document.querySelectorAll<HTMLButtonElement>('.menu-action[data-cmd]').forEach((actionBtn) => {
     actionBtn.addEventListener('click', () => {
       const cmd = actionBtn.dataset.cmd;
       closeAllMenusAndPopovers();
       if (cmd) void executeCommand(cmd);
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.lang-option').forEach((langBtn) => {
+    langBtn.addEventListener('click', () => {
+      const lang = langBtn.dataset.lang as LanguageSetting | undefined;
+      closeAllMenusAndPopovers();
+      if (lang) {
+        settings.language = lang;
+        applySettingsToDOM();
+      }
     });
   });
 
@@ -515,6 +645,9 @@ async function executeCommand(cmd: string): Promise<void> {
       settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
       applySettingsToDOM();
       break;
+    case 'about':
+      void openAbout();
+      break;
   }
 }
 
@@ -524,6 +657,10 @@ function setupKeyboardShortcuts(): void {
     const key = e.key.toLowerCase();
 
     if (e.key === 'Escape') {
+      if (!aboutOverlay.classList.contains('hidden')) {
+        closeAbout();
+        return;
+      }
       closeAllMenusAndPopovers();
       if (!findBar.classList.contains('hidden')) closeFindBar();
       return;
@@ -659,11 +796,127 @@ function setupControls(): void {
   });
 }
 
+// ===== Menu de contexto (botão direito) =====
+function isEditableTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.closest('input, textarea')) {
+    const input = el.closest('input, textarea') as HTMLInputElement | HTMLTextAreaElement;
+    return !input.readOnly && !input.disabled;
+  }
+  return Boolean(el.closest('[contenteditable="true"]'));
+}
+
+function hasTextSelection(target: EventTarget | null): boolean {
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+    return (target.selectionStart ?? 0) !== (target.selectionEnd ?? 0);
+  }
+  const sel = window.getSelection();
+  return Boolean(sel && !sel.isCollapsed && sel.toString().length > 0);
+}
+
+function setCtxEnabled(action: string, enabled: boolean): void {
+  const btn = contextMenu.querySelector<HTMLButtonElement>(`[data-ctx="${action}"]`);
+  if (btn) btn.disabled = !enabled;
+}
+
+function openContextMenu(e: MouseEvent): void {
+  const editable = isEditableTarget(e.target);
+  const selected = hasTextSelection(e.target);
+
+  setCtxEnabled('cut', editable && selected);
+  setCtxEnabled('copy', selected);
+  setCtxEnabled('paste', editable);
+  setCtxEnabled('selectAll', true);
+
+  closeAllMenusAndPopovers();
+  contextMenu.classList.remove('hidden');
+
+  // Posiciona no cursor, sem sair da janela
+  const shellRect = appShell.getBoundingClientRect();
+  const menuRect = contextMenu.getBoundingClientRect();
+  const margin = 6;
+  let x = e.clientX - shellRect.left;
+  let y = e.clientY - shellRect.top;
+  if (x + menuRect.width > shellRect.width - margin) x = Math.max(margin, x - menuRect.width);
+  if (y + menuRect.height > shellRect.height - margin) y = Math.max(margin, y - menuRect.height);
+  x = Math.max(margin, x);
+  y = Math.max(margin, y);
+  contextMenu.style.left = `${x}px`;
+  contextMenu.style.top = `${y}px`;
+}
+
+function setupContextMenu(): void {
+  window.addEventListener('contextmenu', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('.titlebar, .menubar, .context-menu, .modal-overlay')) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    openContextMenu(e);
+  });
+
+  contextMenu.addEventListener('mousedown', (e) => e.preventDefault());
+  contextMenu.addEventListener('click', (e) => e.stopPropagation());
+
+  contextMenu.querySelectorAll<HTMLButtonElement>('[data-ctx]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.ctx as 'copy' | 'cut' | 'paste' | 'selectAll';
+      contextMenu.classList.add('hidden');
+      void window.markNotaAPI.runEditAction(action);
+    });
+  });
+
+  window.addEventListener('blur', () => contextMenu.classList.add('hidden'));
+  window.addEventListener('resize', () => contextMenu.classList.add('hidden'));
+  editorScroll.addEventListener('scroll', () => contextMenu.classList.add('hidden'));
+}
+
+// ===== Sobre =====
+let appRepoUrl = 'https://github.com/antonio-ebarros/MarkNota';
+
+async function openAbout(): Promise<void> {
+  aboutOverlay.classList.remove('hidden');
+  const tr = t();
+  document.getElementById('about-version')!.textContent = `${tr.aboutVersionPrefix} ${appVersion}`;
+  (aboutOverlay.querySelector('.about-card') as HTMLElement).focus();
+}
+
+function closeAbout(): void {
+  aboutOverlay.classList.add('hidden');
+  editor?.commands.focus();
+}
+
+function setupAbout(): void {
+  document.getElementById('about-close')!.addEventListener('click', () => closeAbout());
+  document.getElementById('about-github')!.addEventListener('click', () => {
+    if (appRepoUrl) void window.markNotaAPI.openExternal(appRepoUrl);
+  });
+  aboutOverlay.addEventListener('click', (e) => {
+    if (e.target === aboutOverlay) closeAbout();
+  });
+}
+
 async function init(): Promise<void> {
+  try {
+    const info = await window.markNotaAPI.getAppInfo();
+    systemLocale = info.systemLocale || systemLocale;
+    appPlatform = info.platform || appPlatform;
+    appVersion = info.version || appVersion;
+    appRepoUrl = info.repository || appRepoUrl;
+    document.getElementById('about-author')!.textContent = info.author;
+    document.getElementById('about-repo')!.textContent = info.repository.replace(/^https?:\/\//, '');
+  } catch {
+    // Fallback
+  }
+
   applySettingsToDOM();
   void window.markNotaAPI.setBlur(settings.blur);
 
   editor = createMarkdownEditor(editorContainer, '', {
+    getPlaceholder() {
+      return t().editorPlaceholder;
+    },
     onUpdate(markdown) {
       if (isApplyingTabContent) return;
       const active = getActiveTab();
@@ -676,16 +929,16 @@ async function init(): Promise<void> {
       }
     },
     onSelectionChange(line, col, words, chars) {
-      statusCursor.textContent = `Ln ${line}, Col ${col}`;
-      const wLabel = words === 1 ? 'palavra' : 'palavras';
-      const cLabel = chars === 1 ? 'caractere' : 'caracteres';
-      statusCounts.textContent = `${words} ${wLabel}, ${chars} ${cLabel}`;
+      lastStats = { line, col, words, chars };
+      updateStatusBarStats();
     }
   });
 
   setupMenus();
   setupControls();
   setupKeyboardShortcuts();
+  setupContextMenu();
+  setupAbout();
   createNewTab();
 
   const initialFiles = await window.markNotaAPI.getInitialFiles();

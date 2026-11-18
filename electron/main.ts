@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import pkg from '../package.json';
 
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -9,10 +10,98 @@ if (process.platform === 'linux') {
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
+type LocaleCode = 'pt' | 'en' | 'zh';
+
+interface DialogStrings {
+  openTitle: string;
+  filterMdAndText: string;
+  filterMd: string;
+  filterText: string;
+  filterAll: string;
+  saveTitle: string;
+  saveAsTitle: string;
+  defaultFileName: string;
+  unsavedQuestion: (name: string) => string;
+  btnSave: string;
+  btnDontSave: string;
+  btnCancel: string;
+}
+
+const DIALOG_STRINGS: Record<LocaleCode, DialogStrings> = {
+  pt: {
+    openTitle: 'Abrir arquivo',
+    filterMdAndText: 'Markdown e Texto',
+    filterMd: 'Markdown (*.md)',
+    filterText: 'Texto simples (*.txt)',
+    filterAll: 'Todos os arquivos',
+    saveTitle: 'Salvar arquivo',
+    saveAsTitle: 'Salvar como',
+    defaultFileName: 'sem-titulo.md',
+    unsavedQuestion: (name) => `Deseja salvar as alterações em "${name}"?`,
+    btnSave: 'Salvar',
+    btnDontSave: 'Não salvar',
+    btnCancel: 'Cancelar'
+  },
+  en: {
+    openTitle: 'Open file',
+    filterMdAndText: 'Markdown and Text',
+    filterMd: 'Markdown (*.md)',
+    filterText: 'Plain text (*.txt)',
+    filterAll: 'All files',
+    saveTitle: 'Save file',
+    saveAsTitle: 'Save as',
+    defaultFileName: 'untitled.md',
+    unsavedQuestion: (name) => `Do you want to save changes to "${name}"?`,
+    btnSave: 'Save',
+    btnDontSave: "Don't save",
+    btnCancel: 'Cancel'
+  },
+  zh: {
+    openTitle: '打开文件',
+    filterMdAndText: 'Markdown 与文本',
+    filterMd: 'Markdown (*.md)',
+    filterText: '纯文本 (*.txt)',
+    filterAll: '所有文件',
+    saveTitle: '保存文件',
+    saveAsTitle: '另存为',
+    defaultFileName: '无标题.md',
+    unsavedQuestion: (name) => `是否保存对“${name}”的更改？`,
+    btnSave: '保存',
+    btnDontSave: '不保存',
+    btnCancel: '取消'
+  }
+};
+
 let mainWindow: BrowserWindow | null = null;
 let blurEnabled = true;
+let currentLocale: LocaleCode = 'pt';
 
-function applyKdeBlur(win: BrowserWindow, enable: boolean): void {
+function detectInitialLocale(): LocaleCode {
+  try {
+    const raw = (app.getLocale() || 'pt').toLowerCase();
+    if (raw.startsWith('zh')) return 'zh';
+    if (raw.startsWith('en')) return 'en';
+    if (raw.startsWith('pt')) return 'pt';
+    return 'en';
+  } catch {
+    return 'pt';
+  }
+}
+
+function applySystemBlur(win: BrowserWindow, enable: boolean): void {
+  if (process.platform === 'win32') {
+    try {
+      win.setBackgroundMaterial(enable ? 'acrylic' : 'none');
+    } catch {
+      try {
+        win.setBackgroundMaterial(enable ? 'mica' : 'none');
+      } catch {
+        // Ignore on older Windows builds
+      }
+    }
+    return;
+  }
+
   if (process.platform !== 'linux') return;
   try {
     const handle = win.getNativeWindowHandle();
@@ -42,6 +131,7 @@ function isAllowedAppUrl(targetUrl: string): boolean {
 
 function createWindow(): void {
   const isWin = process.platform === 'win32';
+  const iconFile = isWin ? '../assets/icon.ico' : '../assets/icon-256.png';
 
   mainWindow = new BrowserWindow({
     width: 980,
@@ -49,11 +139,11 @@ function createWindow(): void {
     minWidth: 520,
     minHeight: 380,
     title: 'MarkNota',
-    icon: path.join(__dirname, '../assets/icon-256.png'),
+    icon: path.join(__dirname, iconFile),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
-    ...(isWin ? { backgroundMaterial: 'mica' as const } : {}),
+    ...(isWin ? { backgroundMaterial: 'acrylic' as const } : {}),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -75,7 +165,7 @@ function createWindow(): void {
   mainWindow.once('ready-to-show', () => {
     if (!mainWindow) return;
     mainWindow.show();
-    applyKdeBlur(mainWindow, blurEnabled);
+    applySystemBlur(mainWindow, blurEnabled);
   });
 
   mainWindow.on('maximize', () => {
@@ -99,6 +189,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  currentLocale = detectInitialLocale();
   createWindow();
 
   app.on('activate', () => {
@@ -132,9 +223,16 @@ ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false);
 ipcMain.handle('window:setBlur', (_event, enabled: boolean) => {
   blurEnabled = Boolean(enabled);
   if (mainWindow) {
-    applyKdeBlur(mainWindow, blurEnabled);
+    applySystemBlur(mainWindow, blurEnabled);
   }
   return blurEnabled;
+});
+
+ipcMain.handle('app:setLocale', (_event, locale: unknown) => {
+  if (locale === 'pt' || locale === 'en' || locale === 'zh') {
+    currentLocale = locale;
+  }
+  return currentLocale;
 });
 
 async function readSafeTextFile(filePath: string): Promise<{ filePath: string; name: string; content: string }> {
@@ -154,21 +252,55 @@ async function readSafeTextFile(filePath: string): Promise<{ filePath: string; n
   };
 }
 
+// Última pasta usada em Abrir/Salvar (apenas durante a sessão)
+let lastUsedDir: string | null = null;
+
+function rememberDir(filePath: string): void {
+  lastUsedDir = path.dirname(filePath);
+}
+
+async function dirExists(dir: string): Promise<boolean> {
+  try {
+    return (await fs.stat(dir)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** Pasta padrão: última usada → Documentos → home. */
+async function getDefaultDir(): Promise<string> {
+  if (lastUsedDir && (await dirExists(lastUsedDir))) return lastUsedDir;
+  try {
+    const docs = app.getPath('documents');
+    if (await dirExists(docs)) return docs;
+  } catch {
+    // Ignore
+  }
+  return app.getPath('home');
+}
+
+async function getDefaultSavePath(fileName: string): Promise<string> {
+  return path.join(await getDefaultDir(), path.basename(fileName));
+}
+
 // File operations
 ipcMain.handle('file:open', async () => {
   if (!mainWindow) return null;
+  const s = DIALOG_STRINGS[currentLocale];
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Abrir arquivo',
+    title: s.openTitle,
+    defaultPath: await getDefaultDir(),
     properties: ['openFile', 'multiSelections'],
     filters: [
-      { name: 'Markdown e Texto', extensions: ['md', 'markdown', 'txt'] },
-      { name: 'Markdown', extensions: ['md', 'markdown'] },
-      { name: 'Texto simples', extensions: ['txt'] },
-      { name: 'Todos os arquivos', extensions: ['*'] }
+      { name: s.filterMdAndText, extensions: ['md', 'markdown', 'txt'] },
+      { name: s.filterMd, extensions: ['md', 'markdown'] },
+      { name: s.filterText, extensions: ['txt'] },
+      { name: s.filterAll, extensions: ['*'] }
     ]
   });
 
   if (result.canceled || result.filePaths.length === 0) return null;
+  rememberDir(result.filePaths[0]);
 
   return Promise.all(result.filePaths.map((fp) => readSafeTextFile(fp)));
 });
@@ -201,16 +333,17 @@ ipcMain.handle('file:save', async (_event, payload: unknown) => {
     throw new Error('Conteúdo inválido para salvar.');
   }
 
+  const s = DIALOG_STRINGS[currentLocale];
   let targetPath = typeof data.filePath === 'string' && data.filePath.trim() ? path.resolve(data.filePath) : null;
   if (!targetPath) {
-    const defaultName = typeof data.defaultName === 'string' && data.defaultName.trim() ? data.defaultName : 'sem-titulo.md';
+    const defaultName = typeof data.defaultName === 'string' && data.defaultName.trim() ? data.defaultName : s.defaultFileName;
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Salvar arquivo',
-      defaultPath: defaultName,
+      title: s.saveTitle,
+      defaultPath: await getDefaultSavePath(defaultName),
       filters: [
-        { name: 'Markdown (*.md)', extensions: ['md'] },
-        { name: 'Texto simples (*.txt)', extensions: ['txt'] },
-        { name: 'Todos os arquivos', extensions: ['*'] }
+        { name: s.filterMd, extensions: ['md'] },
+        { name: s.filterText, extensions: ['txt'] },
+        { name: s.filterAll, extensions: ['*'] }
       ]
     });
     if (result.canceled || !result.filePath) return null;
@@ -218,6 +351,7 @@ ipcMain.handle('file:save', async (_event, payload: unknown) => {
   }
 
   await fs.writeFile(targetPath, data.content, 'utf-8');
+  rememberDir(targetPath);
   return {
     filePath: targetPath,
     name: path.basename(targetPath)
@@ -231,19 +365,21 @@ ipcMain.handle('file:saveAs', async (_event, payload: unknown) => {
     throw new Error('Conteúdo inválido para salvar.');
   }
 
-  const defaultName = typeof data.defaultName === 'string' && data.defaultName.trim() ? data.defaultName : 'sem-titulo.md';
+  const s = DIALOG_STRINGS[currentLocale];
+  const defaultName = typeof data.defaultName === 'string' && data.defaultName.trim() ? data.defaultName : s.defaultFileName;
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Salvar como',
-    defaultPath: defaultName,
+    title: s.saveAsTitle,
+    defaultPath: await getDefaultSavePath(defaultName),
     filters: [
-      { name: 'Markdown (*.md)', extensions: ['md'] },
-      { name: 'Texto simples (*.txt)', extensions: ['txt'] },
-      { name: 'Todos os arquivos', extensions: ['*'] }
+      { name: s.filterMd, extensions: ['md'] },
+      { name: s.filterText, extensions: ['txt'] },
+      { name: s.filterAll, extensions: ['*'] }
     ]
   });
   if (result.canceled || !result.filePath) return null;
 
   await fs.writeFile(result.filePath, data.content, 'utf-8');
+  rememberDir(result.filePath);
   return {
     filePath: result.filePath,
     name: path.basename(result.filePath)
@@ -252,12 +388,13 @@ ipcMain.handle('file:saveAs', async (_event, payload: unknown) => {
 
 ipcMain.handle('dialog:confirmUnsaved', async (_event, fileName: unknown) => {
   if (!mainWindow) return 'cancel';
-  const safeName = typeof fileName === 'string' && fileName.trim() ? fileName : 'sem título.md';
+  const s = DIALOG_STRINGS[currentLocale];
+  const safeName = typeof fileName === 'string' && fileName.trim() ? fileName : s.defaultFileName;
   const result = await dialog.showMessageBox(mainWindow, {
     type: 'question',
     title: 'MarkNota',
-    message: `Deseja salvar as alterações em "${safeName}"?`,
-    buttons: ['Salvar', 'Não salvar', 'Cancelar'],
+    message: s.unsavedQuestion(safeName),
+    buttons: [s.btnSave, s.btnDontSave, s.btnCancel],
     defaultId: 0,
     cancelId: 2
   });
@@ -267,6 +404,35 @@ ipcMain.handle('dialog:confirmUnsaved', async (_event, fileName: unknown) => {
 });
 
 ipcMain.handle('fonts:list', async () => {
+  if (process.platform === 'win32') {
+    return new Promise<string[]>((resolve) => {
+      execFile(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Drawing; (New-Object System.Drawing.Text.InstalledFontCollection).Families.Name'
+        ],
+        { maxBuffer: 4 * 1024 * 1024 },
+        (err, stdout) => {
+          if (err || !stdout) {
+            resolve([]);
+            return;
+          }
+          const set = new Set<string>();
+          for (const line of stdout.split(/\r?\n/)) {
+            const name = line.trim();
+            if (name && !name.startsWith('@')) {
+              set.add(name);
+            }
+          }
+          resolve(Array.from(set).sort((a, b) => a.localeCompare(b)));
+        }
+      );
+    });
+  }
+
   if (process.platform !== 'linux') {
     return [];
   }
@@ -289,6 +455,31 @@ ipcMain.handle('fonts:list', async () => {
     });
   });
 });
+
+// Ações de edição nativas (usadas pelo menu de contexto). Passam pelos
+// handlers do editor, então copiar/colar respeita o Markdown.
+const EDIT_ACTIONS = ['copy', 'cut', 'paste', 'selectAll'] as const;
+type EditAction = (typeof EDIT_ACTIONS)[number];
+ipcMain.handle('edit:run', (_event, action: unknown) => {
+  if (!mainWindow || !EDIT_ACTIONS.includes(action as EditAction)) return;
+  const wc = mainWindow.webContents;
+  switch (action as EditAction) {
+    case 'copy': wc.copy(); break;
+    case 'cut': wc.cut(); break;
+    case 'paste': wc.paste(); break;
+    case 'selectAll': wc.selectAll(); break;
+  }
+});
+
+ipcMain.handle('app:getInfo', () => ({
+  name: 'MarkNota',
+  version: pkg.version,
+  author: 'Antonio E. Barros',
+  repository: 'https://github.com/antonio-ebarros/MarkNota',
+  platform: process.platform,
+  electron: process.versions.electron,
+  systemLocale: app.getLocale()
+}));
 
 ipcMain.handle('shell:openExternal', (_event, url: unknown) => {
   if (typeof url !== 'string') return;

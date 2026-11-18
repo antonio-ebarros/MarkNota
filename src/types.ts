@@ -1,3 +1,5 @@
+import type { LanguageSetting } from './i18n';
+
 export interface TabDocument {
   id: string;
   title: string;
@@ -5,6 +7,8 @@ export interface TabDocument {
   content: string;
   savedContent: string;
   dirty: boolean;
+  isUntitled?: boolean;
+  untitledIndex?: number;
 }
 
 export interface AppSettings {
@@ -17,6 +21,8 @@ export interface AppSettings {
   lineHeight: number;
   zoom: number;
   showStatusBar: boolean;
+  language: LanguageSetting;
+  fontV2?: boolean;
 }
 
 export interface OpenedFile {
@@ -30,6 +36,16 @@ export interface SavedFile {
   name: string;
 }
 
+export interface AppInfo {
+  name: string;
+  version: string;
+  author: string;
+  repository: string;
+  platform: string;
+  electron: string;
+  systemLocale: string;
+}
+
 declare global {
   interface Window {
     markNotaAPI: {
@@ -38,6 +54,7 @@ declare global {
       closeWindow: () => Promise<void>;
       isMaximized: () => Promise<boolean>;
       setBlur: (enabled: boolean) => Promise<boolean>;
+      setLocale: (locale: 'pt' | 'en' | 'zh') => Promise<string>;
       onMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
       openFiles: () => Promise<OpenedFile[] | null>;
       getInitialFiles: () => Promise<OpenedFile[]>;
@@ -45,6 +62,8 @@ declare global {
       saveFile: (payload: { filePath: string | null; defaultName: string; content: string }) => Promise<SavedFile | null>;
       saveFileAs: (payload: { defaultName: string; content: string }) => Promise<SavedFile | null>;
       confirmUnsaved: (fileName: string) => Promise<'save' | 'discard' | 'cancel'>;
+      runEditAction: (action: 'copy' | 'cut' | 'paste' | 'selectAll') => Promise<void>;
+      getAppInfo: () => Promise<AppInfo>;
       listSystemFonts: () => Promise<string[]>;
       openExternal: (url: string) => Promise<void>;
     };

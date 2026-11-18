@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "MarkNota: bloco de notas minimalista estilo Windows 11 Notepad com Markdown WYSIWYG (inspirado no MarkText) e fundo transparente fosco.",
   "main": "dist-electron/main.cjs",
-  "author": "andb",
+  "author": {
+    "name": "Antonio E. Barros",
+    "url": "https://github.com/antonio-ebarros"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run build:electron",
@@ -11,7 +14,8 @@
     "start": "npm run build && electron .",
     "start:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && npm run build:electron && VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "dist:appimage": "npm run build && electron-builder --linux AppImage",
-    "dist:deb": "npm run build && electron-builder --linux deb"
+    "dist:deb": "npm run build && electron-builder --linux deb",
+    "dist:win": "npm run build && electron-builder --win nsis"
   },
   "build": {
     "appId": "com.marknota.app",
@@ -23,6 +27,7 @@
       "dist/**/*",
       "dist-electron/**/*",
       "assets/**/*",
+      "LICENSE",
       "package.json"
     ],
     "fileAssociations": [
@@ -44,7 +49,7 @@
       ],
       "icon": "assets/icon-512.png",
       "category": "Utility;TextEditor;",
-      "maintainer": "antonio-ebarros",
+      "maintainer": "Antonio E. Barros <antonio-ebarros@users.noreply.github.com>",
       "desktop": {
         "entry": {
           "Name": "MarkNota",
@@ -57,8 +62,9 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/icon-512.png"
-    }
+      "icon": "assets/icon.ico"
+    },
+    "copyright": "Copyright © 2026 Antonio E. Barros"
   },
   "dependencies": {
     "@tiptap/core": "^2.11.5",
@@ -79,5 +85,11 @@
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
     "wait-on": "^8.0.2"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/antonio-ebarros/MarkNota",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antonio-ebarros/MarkNota.git"
   }
 }

@@ -1,8 +1,32 @@
+/* Fonte oficial do editor: 0xProto Nerd Font Mono (SIL OFL 1.1, embutida) */
+@font-face {
+  font-family: '0xProto Nerd Font Mono';
+  src: url('./assets/fonts/0xProtoNerdFontMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: '0xProto Nerd Font Mono';
+  src: url('./assets/fonts/0xProtoNerdFontMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: '0xProto Nerd Font Mono';
+  src: url('./assets/fonts/0xProtoNerdFontMono-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   --bg-opacity: 0.78;
   --ui-font: 'Segoe UI', 'Noto Sans', 'Inter', system-ui, sans-serif;
-  --editor-font: 'Inter', 'Segoe UI', 'Noto Sans', sans-serif;
-  --mono-font: 'JetBrains Mono', 'Fira Code', 'Noto Sans Mono', monospace;
+  --cjk-fallback: 'Noto Sans CJK SC', 'Microsoft YaHei', 'PingFang SC', 'Source Han Sans SC';
+  --editor-font: '0xProto Nerd Font Mono', var(--cjk-fallback), monospace;
+  --mono-font: '0xProto Nerd Font Mono', 'JetBrains Mono', 'Fira Code', var(--cjk-fallback), monospace;
   --editor-size: 16px;
   --editor-line-height: 1.65;
   --editor-zoom: 1;
@@ -838,4 +862,201 @@ input[type='range'] {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
+}
+
+/* ===== Logo na barra de título ===== */
+.brand-logo {
+  display: block;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* Foco por teclado discreto, na cor do tema */
+.about-card:focus {
+  outline: none;
+}
+
+.about-card button:focus-visible,
+.menu-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ===== Menu de contexto ===== */
+.context-menu {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 200px;
+  z-index: 300;
+  animation: ctx-in 0.09s ease-out;
+  transform-origin: top left;
+}
+
+@keyframes ctx-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.menu-action:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.menu-action:disabled:hover {
+  background: transparent;
+}
+
+/* ===== Janela Sobre ===== */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(3px);
+  animation: fade-in 0.14s ease-out;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.about-card {
+  position: relative;
+  width: 340px;
+  max-width: calc(100% - 32px);
+  padding: 28px 26px 18px;
+  border-radius: 14px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  animation: card-in 0.16s ease-out;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.about-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.about-logo {
+  width: 88px;
+  height: 88px;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.22));
+  -webkit-user-drag: none;
+}
+
+.about-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.about-version {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.about-desc {
+  margin: 8px 0 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.about-credit {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.about-credit strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.about-link {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--tab-hover-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.about-link:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.about-footer {
+  margin-top: 14px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* ===== Menu Opções / Idioma ===== */
+.menu-section-title {
+  padding: 5px 10px 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.lang-check {
+  opacity: 0;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.lang-option.active .lang-check {
+  opacity: 1;
 }

@@ -19,6 +19,7 @@ const ShiftEnterNewBlock = Extension.create({
 export interface EditorCallbacks {
   onUpdate: (markdown: string) => void;
   onSelectionChange: (line: number, col: number, words: number, chars: number) => void;
+  getPlaceholder: () => string;
 }
 
 export function createMarkdownEditor(
@@ -54,7 +55,7 @@ export function createMarkdownEditor(
         }
       }),
       Placeholder.configure({
-        placeholder: 'Comece a escrever em Markdown... (# título, **negrito**, - [ ] tarefa)'
+        placeholder: () => callbacks.getPlaceholder()
       }),
       Markdown.configure({
         html: false,
