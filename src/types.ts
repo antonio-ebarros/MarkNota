@@ -1,4 +1,4 @@
-import type { LanguageSetting } from './i18n';
+import type { LanguageSetting, SpellcheckMode } from './i18n';
 
 export interface TabDocument {
   id: string;
@@ -22,6 +22,7 @@ export interface AppSettings {
   zoom: number;
   showStatusBar: boolean;
   language: LanguageSetting;
+  spellcheck: SpellcheckMode;
   fontV2?: boolean;
 }
 
@@ -46,6 +47,15 @@ export interface AppInfo {
   systemLocale: string;
 }
 
+export interface ContextMenuData {
+  x: number;
+  y: number;
+  misspelledWord: string;
+  suggestions: string[];
+  isEditable: boolean;
+  selectionText: string;
+}
+
 declare global {
   interface Window {
     markNotaAPI: {
@@ -55,6 +65,10 @@ declare global {
       isMaximized: () => Promise<boolean>;
       setBlur: (enabled: boolean) => Promise<boolean>;
       setLocale: (locale: 'pt' | 'en' | 'zh') => Promise<string>;
+      setSpellcheck: (mode: SpellcheckMode) => Promise<boolean>;
+      replaceMisspelling: (word: string) => Promise<void>;
+      addWordToDictionary: (word: string) => Promise<boolean>;
+      onContextMenu: (callback: (data: ContextMenuData) => void) => () => void;
       onMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
       openFiles: () => Promise<OpenedFile[] | null>;
       getInitialFiles: () => Promise<OpenedFile[]>;

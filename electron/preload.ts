@@ -21,6 +21,15 @@ export interface AppInfo {
   systemLocale: string;
 }
 
+export interface ContextMenuData {
+  x: number;
+  y: number;
+  misspelledWord: string;
+  suggestions: string[];
+  isEditable: boolean;
+  selectionText: string;
+}
+
 contextBridge.exposeInMainWorld('markNotaAPI', {
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
   maximizeWindow: (): Promise<boolean> => ipcRenderer.invoke('window:maximize'),
@@ -28,6 +37,17 @@ contextBridge.exposeInMainWorld('markNotaAPI', {
   isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
   setBlur: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('window:setBlur', enabled),
   setLocale: (locale: 'pt' | 'en' | 'zh'): Promise<string> => ipcRenderer.invoke('app:setLocale', locale),
+  setSpellcheck: (mode: 'pt-en' | 'pt' | 'en' | 'off'): Promise<boolean> =>
+    ipcRenderer.invoke('spell:setMode', mode),
+  replaceMisspelling: (word: string): Promise<void> =>
+    ipcRenderer.invoke('spell:replace', word),
+  addWordToDictionary: (word: string): Promise<boolean> =>
+    ipcRenderer.invoke('spell:addWord', word),
+  onContextMenu: (callback: (data: ContextMenuData) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: ContextMenuData) => callback(data);
+    ipcRenderer.on('window:context-menu', handler);
+    return () => ipcRenderer.removeListener('window:context-menu', handler);
+  },
   onMaximizedChanged: (callback: (isMaximized: boolean) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, value: boolean) => callback(value);
     ipcRenderer.on('window:maximized-changed', handler);

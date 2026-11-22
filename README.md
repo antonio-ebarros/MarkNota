@@ -7,8 +7,9 @@ Bloco de notas minimalista inspirado no **Bloco de Notas do Windows 11**, com ed
 - **Editor Markdown WYSIWYG**: escreva em Markdown com formatação instantânea.
 - **Fonte oficial embutida**: `0xProto Nerd Font Mono` (SIL OFL 1.1) para o editor de texto, mais seletor rápido de fontes instaladas no sistema.
 - **Transparência fosca**: integração com o desfoque do KDE Plasma no Linux (`Blur KDE`) e com Acrílico/Mica no Windows 11.
-- **Multilíngue (`PT` / `EN` / `中文`)**: detecta automaticamente o idioma do sistema (Português, Inglês ou Chinês Simplificado) ou permite escolher manualmente em **Opções → Idioma**.
-- **Menu de contexto minimalista**: clique com o botão direito para Recortar, Copiar, Colar e Selecionar tudo seguindo o tema atual (Escuro ou Claro Fosco).
+- **Multilíngue (`PT` / `EN` / `中文`)**: detecta automaticamente o idioma do sistema (Português, Inglês ou Chinês Simplificado) ou permite escolher manualmente em **Opções → Idioma da interface**.
+- **Corretor ortográfico offline (`PT` + `EN`)**: dicionários locais de Português (`pt-BR`) e Inglês (`en-US`) integrados ao menu de botão direito com sugestões de correção em 1 clique e opção *"Adicionar ao dicionário"*.
+- **Menu de contexto minimalista**: clique com o botão direito para corrigir palavras, Recortar, Copiar, Colar e Selecionar tudo seguindo o tema atual (Escuro ou Claro Fosco).
 - **Diálogos inteligentes**: inicia em `Documentos` ao salvar ou abrir arquivos e lembra a última pasta usada na sessão.
 
 ## Como executar em desenvolvimento

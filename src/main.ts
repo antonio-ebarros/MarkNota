@@ -7,9 +7,10 @@ import {
   resolveLocale,
   type LanguageSetting,
   type LocaleCode,
+  type SpellcheckMode,
   type Translations
 } from './i18n';
-import type { AppSettings, TabDocument } from './types';
+import type { AppSettings, ContextMenuData, TabDocument } from './types';
 
 const SETTINGS_KEY = 'marknota.settings.v1';
 
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   zoom: 1,
   showStatusBar: true,
   language: 'auto',
+  spellcheck: 'pt-en',
   fontV2: true
 };
 
@@ -166,9 +168,12 @@ function applyLocalization(): void {
     blurLabel.textContent = tr.blurGeneric;
   }
 
-  // Marca de idioma ativo no menu Opções
+  // Marca de idioma e dicionário ativos no menu Opções
   document.querySelectorAll<HTMLButtonElement>('.lang-option').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.lang === settings.language);
+  });
+  document.querySelectorAll<HTMLButtonElement>('.spell-option').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.spell === settings.spellcheck);
   });
 
   // Atualiza abas sem título para o idioma atual
@@ -215,6 +220,12 @@ function applySettingsToDOM(): void {
   themeLightBtn.classList.toggle('active', settings.theme === 'light');
 
   statusZoom.textContent = `${Math.round(settings.zoom * 100)}%`;
+
+  void window.markNotaAPI.setSpellcheck(settings.spellcheck);
+  const editorEl = document.querySelector<HTMLElement>('.tiptap-editor');
+  if (editorEl) {
+    editorEl.setAttribute('spellcheck', settings.spellcheck === 'off' ? 'false' : 'true');
+  }
 
   applyLocalization();
   saveSettings(settings);
@@ -490,6 +501,17 @@ function setupMenus(): void {
       closeAllMenusAndPopovers();
       if (lang) {
         settings.language = lang;
+        applySettingsToDOM();
+      }
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.spell-option').forEach((spellBtn) => {
+    spellBtn.addEventListener('click', () => {
+      const mode = spellBtn.dataset.spell as SpellcheckMode | undefined;
+      closeAllMenusAndPopovers();
+      if (mode) {
+        settings.spellcheck = mode;
         applySettingsToDOM();
       }
     });
@@ -797,6 +819,12 @@ function setupControls(): void {
 }
 
 // ===== Menu de contexto (botão direito) =====
+const ctxSpellBox = document.getElementById('ctx-spell-box')!;
+const ctxSuggestions = document.getElementById('ctx-suggestions')!;
+const ctxAddDictBtn = document.getElementById('ctx-add-dict')!;
+let currentMisspelledWord = '';
+let lastContextPoint = { x: 0, y: 0 };
+
 function isEditableTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
   if (el.closest('input, textarea')) {
@@ -819,24 +847,12 @@ function setCtxEnabled(action: string, enabled: boolean): void {
   if (btn) btn.disabled = !enabled;
 }
 
-function openContextMenu(e: MouseEvent): void {
-  const editable = isEditableTarget(e.target);
-  const selected = hasTextSelection(e.target);
-
-  setCtxEnabled('cut', editable && selected);
-  setCtxEnabled('copy', selected);
-  setCtxEnabled('paste', editable);
-  setCtxEnabled('selectAll', true);
-
-  closeAllMenusAndPopovers();
-  contextMenu.classList.remove('hidden');
-
-  // Posiciona no cursor, sem sair da janela
+function positionContextMenu(clientX: number, clientY: number): void {
   const shellRect = appShell.getBoundingClientRect();
   const menuRect = contextMenu.getBoundingClientRect();
   const margin = 6;
-  let x = e.clientX - shellRect.left;
-  let y = e.clientY - shellRect.top;
+  let x = clientX - shellRect.left;
+  let y = clientY - shellRect.top;
   if (x + menuRect.width > shellRect.width - margin) x = Math.max(margin, x - menuRect.width);
   if (y + menuRect.height > shellRect.height - margin) y = Math.max(margin, y - menuRect.height);
   x = Math.max(margin, x);
@@ -845,15 +861,91 @@ function openContextMenu(e: MouseEvent): void {
   contextMenu.style.top = `${y}px`;
 }
 
+function renderContextSpellcheck(misspelledWord: string, suggestions: string[]): void {
+  currentMisspelledWord = misspelledWord;
+  ctxSuggestions.innerHTML = '';
+
+  if (!misspelledWord || settings.spellcheck === 'off') {
+    ctxSpellBox.classList.add('hidden');
+    return;
+  }
+
+  ctxSpellBox.classList.remove('hidden');
+
+  if (suggestions.length === 0) {
+    const emptyEl = document.createElement('button');
+    emptyEl.className = 'menu-action ctx-no-suggestions';
+    emptyEl.disabled = true;
+    emptyEl.textContent = t().ctxNoSuggestions;
+    ctxSuggestions.appendChild(emptyEl);
+  } else {
+    for (const suggestion of suggestions) {
+      const btn = document.createElement('button');
+      btn.className = 'menu-action ctx-suggestion-btn';
+      const label = document.createElement('span');
+      label.textContent = suggestion;
+      const badge = document.createElement('kbd');
+      badge.textContent = '↵';
+      btn.appendChild(label);
+      btn.appendChild(badge);
+      btn.addEventListener('click', () => {
+        contextMenu.classList.add('hidden');
+        void window.markNotaAPI.replaceMisspelling(suggestion);
+      });
+      ctxSuggestions.appendChild(btn);
+    }
+  }
+}
+
+function openContextMenuFromMain(data: ContextMenuData): void {
+  const target = document.elementFromPoint(data.x, data.y);
+  if (target?.closest('.titlebar, .menubar, .context-menu, .modal-overlay')) {
+    return;
+  }
+
+  const editable = data.isEditable || isEditableTarget(target);
+  const selected = Boolean(data.selectionText) || hasTextSelection(target);
+
+  setCtxEnabled('cut', editable && selected);
+  setCtxEnabled('copy', selected);
+  setCtxEnabled('paste', editable);
+  setCtxEnabled('selectAll', true);
+
+  renderContextSpellcheck(data.misspelledWord, data.suggestions);
+  lastContextPoint = { x: data.x, y: data.y };
+
+  closeAllMenusAndPopovers();
+  contextMenu.classList.remove('hidden');
+  positionContextMenu(data.x, data.y);
+}
+
 function setupContextMenu(): void {
+  // Não chamamos preventDefault() no editor para que o Chromium dispare o evento
+  // 'context-menu' no processo principal com misspelledWord e dictionarySuggestions.
   window.addEventListener('contextmenu', (e) => {
     const target = e.target as HTMLElement | null;
     if (target?.closest('.titlebar, .menubar, .context-menu, .modal-overlay')) {
       e.preventDefault();
       return;
     }
-    e.preventDefault();
-    openContextMenu(e);
+    lastContextPoint = { x: e.clientX, y: e.clientY };
+  });
+
+  // Recebe do processo principal do Electron a palavra sublinhada em vermelho e as sugestões do Hunspell
+  window.markNotaAPI.onContextMenu((data: ContextMenuData) => {
+    openContextMenuFromMain({
+      ...data,
+      x: lastContextPoint.x || data.x,
+      y: lastContextPoint.y || data.y
+    });
+  });
+
+  ctxAddDictBtn.addEventListener('click', () => {
+    const word = currentMisspelledWord;
+    contextMenu.classList.add('hidden');
+    if (word) {
+      void window.markNotaAPI.addWordToDictionary(word);
+    }
   });
 
   contextMenu.addEventListener('mousedown', (e) => e.preventDefault());
@@ -933,6 +1025,11 @@ async function init(): Promise<void> {
       updateStatusBarStats();
     }
   });
+
+  const editorEl = document.querySelector<HTMLElement>('.tiptap-editor');
+  if (editorEl) {
+    editorEl.setAttribute('spellcheck', settings.spellcheck === 'off' ? 'false' : 'true');
+  }
 
   setupMenus();
   setupControls();

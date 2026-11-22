@@ -11,6 +11,7 @@ if (process.platform === 'linux') {
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 type LocaleCode = 'pt' | 'en' | 'zh';
+type SpellcheckMode = 'pt-en' | 'pt' | 'en' | 'off';
 
 interface DialogStrings {
   openTitle: string;
@@ -88,6 +89,47 @@ function detectInitialLocale(): LocaleCode {
   }
 }
 
+/**
+ * Copia os dicionários Hunspell locais (pt-BR e en-US) embutidos em assets/dictionaries
+ * para a pasta Dictionaries do Electron caso ainda não existam, garantindo corretor 100% offline.
+ */
+async function ensureLocalDictionaries(): Promise<void> {
+  if (process.platform === 'win32') return; // Windows usa a API nativa de spellcheck do sistema
+  try {
+    const srcDir = path.join(__dirname, '../assets/dictionaries');
+    const destDir = path.join(app.getPath('userData'), 'Dictionaries');
+    await fs.mkdir(destDir, { recursive: true });
+    const files = ['pt-BR-3-0.bdic', 'en-US-10-1.bdic'];
+    for (const file of files) {
+      const destFile = path.join(destDir, file);
+      try {
+        await fs.access(destFile);
+      } catch {
+        const srcFile = path.join(srcDir, file);
+        await fs.copyFile(srcFile, destFile);
+      }
+    }
+  } catch {
+    // Ignore errors if bundled dictionaries are unavailable
+  }
+}
+
+function applySpellcheckToWindow(win: BrowserWindow, mode: SpellcheckMode): void {
+  try {
+    const ses = win.webContents.session;
+    if (mode === 'off') {
+      ses.setSpellCheckerEnabled(false);
+      return;
+    }
+    ses.setSpellCheckerEnabled(true);
+    const langs =
+      mode === 'pt' ? ['pt-BR'] : mode === 'en' ? ['en-US'] : ['pt-BR', 'en-US'];
+    ses.setSpellCheckerLanguages(langs);
+  } catch {
+    // Ignore
+  }
+}
+
 function applySystemBlur(win: BrowserWindow, enable: boolean): void {
   if (process.platform === 'win32') {
     try {
@@ -150,9 +192,12 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webSecurity: true
+      webSecurity: true,
+      spellcheck: true
     }
   });
+
+  applySpellcheckToWindow(mainWindow, 'pt-en');
 
   // Security: block opening new Electron windows or navigating away from app
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -160,6 +205,18 @@ function createWindow(): void {
     if (!isAllowedAppUrl(url)) {
       event.preventDefault();
     }
+  });
+
+  // Envia sugestões de correção ortográfica e estado para o menu de contexto em vidro fosco
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    mainWindow?.webContents.send('window:context-menu', {
+      x: params.x,
+      y: params.y,
+      misspelledWord: params.misspelledWord || '',
+      suggestions: (params.dictionarySuggestions || []).slice(0, 5),
+      isEditable: params.isEditable,
+      selectionText: params.selectionText || ''
+    });
   });
 
   mainWindow.once('ready-to-show', () => {
@@ -188,8 +245,9 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   currentLocale = detectInitialLocale();
+  await ensureLocalDictionaries();
   createWindow();
 
   app.on('activate', () => {
@@ -233,6 +291,29 @@ ipcMain.handle('app:setLocale', (_event, locale: unknown) => {
     currentLocale = locale;
   }
   return currentLocale;
+});
+
+ipcMain.handle('spell:setMode', (_event, mode: unknown) => {
+  if (mode === 'pt-en' || mode === 'pt' || mode === 'en' || mode === 'off') {
+    if (mainWindow) {
+      applySpellcheckToWindow(mainWindow, mode);
+    }
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('spell:replace', (_event, word: unknown) => {
+  if (mainWindow && typeof word === 'string' && word.trim()) {
+    mainWindow.webContents.replaceMisspelling(word);
+  }
+});
+
+ipcMain.handle('spell:addWord', (_event, word: unknown) => {
+  if (mainWindow && typeof word === 'string' && word.trim()) {
+    return mainWindow.webContents.session.addWordToSpellCheckerDictionary(word.trim());
+  }
+  return false;
 });
 
 async function readSafeTextFile(filePath: string): Promise<{ filePath: string; name: string; content: string }> {

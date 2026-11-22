@@ -93,11 +93,17 @@
           <div class="menu-dropdown-wrap">
             <button class="menu-trigger" data-menu="options" data-i18n="menuOptions">Opções</button>
             <div id="menu-options" class="menu-popup hidden">
-              <div class="menu-section-title" data-i18n="menuLanguage">Idioma</div>
+              <div class="menu-section-title" data-i18n="menuLanguage">Idioma da interface</div>
               <button class="menu-action lang-option" data-lang="auto"><span data-i18n="langAuto">Automático (Sistema)</span><span class="lang-check">✓</span></button>
               <button class="menu-action lang-option" data-lang="pt"><span data-i18n="langPt">Português</span><span class="lang-check">✓</span></button>
               <button class="menu-action lang-option" data-lang="en"><span data-i18n="langEn">English</span><span class="lang-check">✓</span></button>
               <button class="menu-action lang-option" data-lang="zh"><span data-i18n="langZh">中文 (简体)</span><span class="lang-check">✓</span></button>
+              <div class="menu-sep"></div>
+              <div class="menu-section-title" data-i18n="spellSection">Dicionário (Corretor)</div>
+              <button class="menu-action spell-option" data-spell="pt-en"><span data-i18n="spellPtEn">Português + Inglês</span><span class="lang-check">✓</span></button>
+              <button class="menu-action spell-option" data-spell="pt"><span data-i18n="spellPt">Português (pt-BR)</span><span class="lang-check">✓</span></button>
+              <button class="menu-action spell-option" data-spell="en"><span data-i18n="spellEn">Inglês (en-US)</span><span class="lang-check">✓</span></button>
+              <button class="menu-action spell-option" data-spell="off"><span data-i18n="spellOff">Desativado</span><span class="lang-check">✓</span></button>
             </div>
           </div>
 
@@ -221,6 +227,13 @@
 
       <!-- Menu de contexto (botão direito) -->
       <div id="context-menu" class="menu-popup context-menu hidden" role="menu">
+        <div id="ctx-spell-box" class="ctx-spell-box hidden">
+          <div id="ctx-suggestions" class="ctx-suggestions"></div>
+          <button id="ctx-add-dict" class="menu-action ctx-add-dict">
+            <span data-i18n="ctxAddToDict">Adicionar ao dicionário</span>
+          </button>
+          <div class="menu-sep"></div>
+        </div>
         <button class="menu-action" data-ctx="cut"><span data-i18n="ctxCut">Recortar</span><kbd>Ctrl+X</kbd></button>
         <button class="menu-action" data-ctx="copy"><span data-i18n="ctxCopy">Copiar</span><kbd>Ctrl+C</kbd></button>
         <button class="menu-action" data-ctx="paste"><span data-i18n="ctxPaste">Colar</span><kbd>Ctrl+V</kbd></button>

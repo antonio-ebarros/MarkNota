@@ -1,5 +1,6 @@
 export type LocaleCode = 'pt' | 'en' | 'zh';
 export type LanguageSetting = 'auto' | LocaleCode;
+export type SpellcheckMode = 'pt-en' | 'pt' | 'en' | 'off';
 
 export interface Translations {
   // Window & Tabs
@@ -45,6 +46,12 @@ export interface Translations {
   langEn: string;
   langZh: string;
 
+  spellSection: string;
+  spellPtEn: string;
+  spellPt: string;
+  spellEn: string;
+  spellOff: string;
+
   menuAbout: string;
 
   // Quick toolbar
@@ -81,6 +88,8 @@ export interface Translations {
   findClose: string;
 
   // Context menu
+  ctxNoSuggestions: string;
+  ctxAddToDict: string;
   ctxCut: string;
   ctxCopy: string;
   ctxPaste: string;
@@ -141,11 +150,17 @@ export const TRANSLATIONS: Record<LocaleCode, Translations> = {
     menuToggleTheme: 'Alternar tema Claro/Escuro',
 
     menuOptions: 'Opções',
-    menuLanguage: 'Idioma',
+    menuLanguage: 'Idioma da interface',
     langAuto: 'Automático (Sistema)',
     langPt: 'Português',
     langEn: 'English',
     langZh: '中文 (简体)',
+
+    spellSection: 'Dicionário (Corretor)',
+    spellPtEn: 'Português + Inglês',
+    spellPt: 'Português (pt-BR)',
+    spellEn: 'Inglês (en-US)',
+    spellOff: 'Desativado',
 
     menuAbout: 'Sobre',
 
@@ -178,6 +193,8 @@ export const TRANSLATIONS: Record<LocaleCode, Translations> = {
     findNext: 'Próximo',
     findClose: 'Fechar (Esc)',
 
+    ctxNoSuggestions: 'Sem sugestões de correção',
+    ctxAddToDict: 'Adicionar ao dicionário',
     ctxCut: 'Recortar',
     ctxCopy: 'Copiar',
     ctxPaste: 'Colar',
@@ -236,11 +253,17 @@ export const TRANSLATIONS: Record<LocaleCode, Translations> = {
     menuToggleTheme: 'Toggle Light/Dark theme',
 
     menuOptions: 'Options',
-    menuLanguage: 'Language',
+    menuLanguage: 'Interface language',
     langAuto: 'Automatic (System)',
     langPt: 'Português',
     langEn: 'English',
     langZh: '中文 (简体)',
+
+    spellSection: 'Dictionary (Spellcheck)',
+    spellPtEn: 'Portuguese + English',
+    spellPt: 'Portuguese (pt-BR)',
+    spellEn: 'English (en-US)',
+    spellOff: 'Disabled',
 
     menuAbout: 'About',
 
@@ -273,6 +296,8 @@ export const TRANSLATIONS: Record<LocaleCode, Translations> = {
     findNext: 'Next',
     findClose: 'Close (Esc)',
 
+    ctxNoSuggestions: 'No spelling suggestions',
+    ctxAddToDict: 'Add to dictionary',
     ctxCut: 'Cut',
     ctxCopy: 'Copy',
     ctxPaste: 'Paste',
@@ -331,11 +356,17 @@ export const TRANSLATIONS: Record<LocaleCode, Translations> = {
     menuToggleTheme: '切换浅色/深色主题',
 
     menuOptions: '选项',
-    menuLanguage: '语言 (Language)',
+    menuLanguage: '界面语言 (Language)',
     langAuto: '自动 (跟随系统)',
     langPt: 'Português',
     langEn: 'English',
     langZh: '中文 (简体)',
+
+    spellSection: '拼写检查词典',
+    spellPtEn: '葡萄牙语 + 英语',
+    spellPt: '葡萄牙语 (pt-BR)',
+    spellEn: '英语 (en-US)',
+    spellOff: '关闭拼写检查',
 
     menuAbout: '关于',
 
@@ -368,6 +399,8 @@ export const TRANSLATIONS: Record<LocaleCode, Translations> = {
     findNext: '下一个',
     findClose: '关闭 (Esc)',
 
+    ctxNoSuggestions: '无拼写建议',
+    ctxAddToDict: '添加到词典',
     ctxCut: '剪切',
     ctxCopy: '复制',
     ctxPaste: '粘贴',
